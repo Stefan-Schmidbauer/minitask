@@ -1,0 +1,4 @@
+# MiniTask Desktop App - System Dependencies (Debian/Ubuntu)
+# Qt6 runtime dependencies
+libgl1
+libegl1
