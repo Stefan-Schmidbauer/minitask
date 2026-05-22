@@ -117,8 +117,8 @@ def update_task(
 
     Args:
         uri: Task URI (from list_tasks)
-        title: New task title
-        date: Due date (YYYY-MM-DD), empty = no date
+        title: Task title — always required; pass the current title from list_tasks if not changing it
+        date: Due date (YYYY-MM-DD), empty = keep existing date
         starred: True = add star, False = remove star, omit = keep unchanged
     """
     _ensure_connected()
@@ -134,11 +134,8 @@ def complete_task(uri: str) -> str:
         uri: Task URI (from list_tasks)
     """
     _ensure_connected()
-    tasks = _service.get_tasks()
-    task = next((t for t in tasks if t.uri == uri), None)
     _service.delete_task(uri)
-    title = task.title if task else uri
-    return f"Task completed: {title}"
+    return "Task completed."
 
 
 

@@ -1,8 +1,8 @@
 import logging
+import uuid
 from datetime import date, datetime, timezone
 
 import caldav
-from icalendar import Calendar, Todo
 
 from src.models.task import Task
 
@@ -64,23 +64,24 @@ class CalDAVService:
     def create_task(self, title: str, date_str: str = "") -> bool:
         if not self._calendar:
             raise ConnectionError("No calendar selected")
-        cal = Calendar()
-        cal.add("prodid", "-//MiniTask//EN")
-        cal.add("version", "2.0")
-        todo = Todo()
-        todo.add("summary", title)
-        todo.add("status", "NEEDS-ACTION")
-        todo.add("created", datetime.now(tz=timezone.utc))
-        todo.add("dtstamp", datetime.now(tz=timezone.utc))
+        uid = str(uuid.uuid4()).upper()
+        now = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//MiniTask//EN",
+            "BEGIN:VTODO",
+            f"UID:{uid}",
+            f"DTSTAMP:{now}",
+            f"CREATED:{now}",
+            f"SUMMARY:{self._escape_ical(title)}",
+            "STATUS:NEEDS-ACTION",
+        ]
         if date_str:
-            try:
-                year, month, day = date_str.split("-")
-                todo.add("due", date(int(year), int(month), int(day)))
-            except (ValueError, TypeError):
-                pass
-        cal.add_component(todo)
+            lines.append(f"DUE;VALUE=DATE:{date_str.replace('-', '')}")
+        lines += ["END:VTODO", "END:VCALENDAR"]
         try:
-            self._calendar.save_todo(cal.to_ical().decode("utf-8"))
+            self._calendar.save_todo("\r\n".join(lines) + "\r\n")
             logger.info("Task created: %s", title)
             return True
         except Exception as e:
@@ -92,18 +93,20 @@ class CalDAVService:
         if not self._calendar:
             raise ConnectionError("No calendar selected")
         try:
-            # Fetch the existing todo from the server
             todo_obj = caldav.Todo(client=self._client, url=uri, parent=self._calendar)
             todo_obj.load()
 
-            # Extract UID from existing data
             uid = ""
+            existing_due = ""
+            existing_priority = ""
             for line in todo_obj.data.splitlines():
                 if line.startswith("UID:"):
                     uid = line[4:].strip()
-                    break
+                elif line.upper().startswith("DUE"):
+                    existing_due = line
+                elif line.startswith("PRIORITY:"):
+                    existing_priority = line
 
-            # Build new iCalendar string from scratch (same approach as mini-task-gui)
             now = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
             lines = [
                 "BEGIN:VCALENDAR",
@@ -116,11 +119,15 @@ class CalDAVService:
             ]
 
             if date_str:
-                due = date_str.replace("-", "")
-                lines.append(f"DUE;VALUE=DATE:{due}")
+                lines.append(f"DUE;VALUE=DATE:{date_str.replace('-', '')}")
+            elif existing_due:
+                lines.append(existing_due)
 
-            if starred is not None and starred:
+            if starred is True:
                 lines.append("PRIORITY:1")
+            elif starred is None and existing_priority:
+                lines.append(existing_priority)
+            # starred is False → kein PRIORITY-Eintrag = Stern entfernen
 
             if completed:
                 lines.append("STATUS:COMPLETED")
@@ -129,13 +136,9 @@ class CalDAVService:
             else:
                 lines.append("STATUS:NEEDS-ACTION")
 
-            lines.append("END:VTODO")
-            lines.append("END:VCALENDAR")
+            lines += ["END:VTODO", "END:VCALENDAR"]
 
-            new_data = "\r\n".join(lines) + "\r\n"
-
-            # Set data and save (same pattern as mini-task-gui: server_task.data = ...; server_task.save())
-            todo_obj.data = new_data
+            todo_obj.data = "\r\n".join(lines) + "\r\n"
             todo_obj.save()
             logger.info("Task updated: %s", uri)
             return True
