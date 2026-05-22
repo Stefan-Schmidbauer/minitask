@@ -1,5 +1,10 @@
 # MiniTask
 
+![Python](https://img.shields.io/badge/python-3.12+-blue)
+![License](https://img.shields.io/github/license/Stefan-Schmidbauer/minitask)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
+![MCP](https://img.shields.io/badge/MCP-compatible-green)
+
 A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) and python-caldav — with built-in **MCP server** so any MCP-compatible AI client can manage your tasks directly via natural language.
 
 ![MiniTask Screenshot](assets/screenshot.png)
