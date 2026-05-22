@@ -1,5 +1,10 @@
+blog/
 venv/
 __pycache__/
+.claude/settings.json
+.claude/settings.local.json
+.mcp.json
+settings.json
 *.pyc
 *.pyo
 *.egg-info/

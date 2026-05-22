@@ -19,7 +19,11 @@ def main():
     app.setApplicationName("MiniTask")
     app.setStyle("Fusion")
 
-    config_manager = ConfigManager()
+    try:
+        config_manager = ConfigManager()
+    except RuntimeError as e:
+        QMessageBox.critical(None, "Keyring Error", str(e))
+        sys.exit(1)
     service = CalDAVService()
 
     config = config_manager.load() if config_manager.exists() else {}

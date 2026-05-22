@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "minitask": {
+      "command": "/home/yourname/minitask/venv/bin/python3",
+      "args": ["/home/yourname/minitask/mcp_server.py"]
+    }
+  }
+}
