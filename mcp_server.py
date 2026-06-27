@@ -109,21 +109,23 @@ def create_task(title: str, date: str = "") -> str:
 @mcp.tool()
 def update_task(
     uri: str,
-    title: str,
+    title: str = "",
     date: str = "",
     starred: bool | None = None,
 ) -> str:
     """Update an existing task. The URI comes from list_tasks.
 
+    Only pass the fields you want to change; omitted fields keep their current value.
+
     Args:
         uri: Task URI (from list_tasks)
-        title: Task title — always required; pass the current title from list_tasks if not changing it
+        title: New task title, empty = keep existing title
         date: Due date (YYYY-MM-DD), empty = keep existing date
         starred: True = add star, False = remove star, omit = keep unchanged
     """
     _ensure_connected()
-    _service.update_task(uri, title, date, False, starred)
-    return f"Task updated: {title}"
+    _service.update_task(uri, title, date, starred)
+    return f"Task updated: {title}" if title else "Task updated."
 
 
 @mcp.tool()
@@ -138,7 +140,6 @@ def complete_task(uri: str) -> str:
     return "Task completed."
 
 
-
 @mcp.tool()
 def catchup() -> str:
     """Set all overdue tasks to today. Same as 'Catch Up' in the desktop app."""
@@ -148,7 +149,7 @@ def catchup() -> str:
     tasks = _service.get_tasks()
     overdue = [t for t in tasks if t.date and t.date < today]
     for task in overdue:
-        _service.update_task(task.uri, task.title, today, False, task.starred)
+        _service.update_task(task.uri, task.title, today, task.starred)
     return f"{len(overdue)} overdue task(s) moved to today ({today})."
 
 

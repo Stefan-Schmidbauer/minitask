@@ -1,6 +1,7 @@
 blog/
 venv/
 __pycache__/
+.claude/
 .claude/settings.json
 .claude/settings.local.json
 .mcp.json

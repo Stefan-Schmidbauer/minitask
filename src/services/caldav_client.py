@@ -88,8 +88,8 @@ class CalDAVService:
             logger.error("Failed to create task: %s", e)
             raise
 
-    def update_task(self, uri: str, title: str, date_str: str,
-                    completed: bool = False, starred: bool | None = None) -> bool:
+    def update_task(self, uri: str, title: str = "", date_str: str = "",
+                    starred: bool | None = None) -> bool:
         if not self._calendar:
             raise ConnectionError("No calendar selected")
         try:
@@ -97,11 +97,14 @@ class CalDAVService:
             todo_obj.load()
 
             uid = ""
+            existing_summary = ""
             existing_due = ""
             existing_priority = ""
             for line in todo_obj.data.splitlines():
                 if line.startswith("UID:"):
                     uid = line[4:].strip()
+                elif line.startswith("SUMMARY"):
+                    existing_summary = line
                 elif line.upper().startswith("DUE"):
                     existing_due = line
                 elif line.startswith("PRIORITY:"):
@@ -115,8 +118,12 @@ class CalDAVService:
                 "BEGIN:VTODO",
                 f"UID:{uid}",
                 f"DTSTAMP:{now}",
-                f"SUMMARY:{self._escape_ical(title)}",
             ]
+
+            if title:
+                lines.append(f"SUMMARY:{self._escape_ical(title)}")
+            elif existing_summary:
+                lines.append(existing_summary)
 
             if date_str:
                 lines.append(f"DUE;VALUE=DATE:{date_str.replace('-', '')}")
@@ -129,12 +136,7 @@ class CalDAVService:
                 lines.append(existing_priority)
             # starred is False → kein PRIORITY-Eintrag = Stern entfernen
 
-            if completed:
-                lines.append("STATUS:COMPLETED")
-                lines.append(f"COMPLETED:{now}")
-                lines.append("PERCENT-COMPLETE:100")
-            else:
-                lines.append("STATUS:NEEDS-ACTION")
+            lines.append("STATUS:NEEDS-ACTION")
 
             lines += ["END:VTODO", "END:VCALENDAR"]
 

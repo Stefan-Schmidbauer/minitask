@@ -49,7 +49,7 @@ MiniTask uses [Quickstrap](README.quickstrap.md) for installation and startup.
 ./start.sh     # start the app
 ```
 
-`./install.py` interactively sets up a virtual environment and installs system dependencies (`libgl1`, `libegl1`) and Python packages (`PySide6`, `caldav`, `icalendar`). After that, use `./start.sh` to launch the app.
+`./install.py` interactively sets up a virtual environment and installs system dependencies (`libgl1`, `libegl1`) and Python packages (`PySide6`, `caldav`, `icalendar`, `keyring`, `mcp`). After that, use `./start.sh` to launch the app.
 
 ### Windows (manual)
 
@@ -182,11 +182,13 @@ Restart Claude Code — the MCP server starts automatically as a subprocess, no 
 |---|---|
 | `list_tasks` | Show all open tasks |
 | `create_task` | Create a task (title + optional due date) |
-| `update_task` | Edit title, date, or star a task |
+| `update_task` | Edit a task — pass only the fields you want to change (title, date, and/or star); the rest is kept |
 | `complete_task` | Mark a task as done — removes it, same as checking it off in the app |
 | `catchup` | Move all overdue tasks to today — same as "Catch Up" in the app |
 | `list_calendars` | *(Setup)* List all calendars on the CalDAV server |
 | `set_calendar` | *(Setup)* Switch to a different calendar |
+
+See [MCP.md](MCP.md) for the full tool reference (parameters, return values, and example prompts).
 
 ### Credential Security
 
