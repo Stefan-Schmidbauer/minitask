@@ -2,7 +2,7 @@
 
 **A lightweight, profile-based installation framework for Python projects**
 
-Quickstrap provides a simple, reusable installation system that handles both Python packages (pip) and system packages (apt/dpkg), with support for multiple installation profiles and post-install hooks.
+Quickstrap provides a simple, reusable installation system that handles both Python packages (pip) and system packages (apt/dpkg), with support for multiple installation profiles, post-install hooks, and a symmetric uninstall.
 
 ## Features
 
@@ -11,8 +11,10 @@ Quickstrap provides a simple, reusable installation system that handles both Pyt
 - **Virtual Environment** - Automatic venv creation and management
 - **Feature Detection** - Applications can detect which features were installed
 - **Post-Install Hooks** - Run custom scripts after installation
+- **Symmetric Uninstall** - `--uninstall` removes the venv and generated files, runs your uninstall scripts, and lists system packages to remove
 - **Template-Driven** - No code changes needed, just configure INI files
 - **Copy-and-Go** - Clone, configure, and you're ready to deploy
+- **Versioned Engine** - Each project carries a known framework version (`--version`) and can pull engine updates with `--update-framework`, leaving its own config untouched
 
 ## Quick Start
 
@@ -136,6 +138,8 @@ The configuration is stored in the project directory: `./{app_name}_profile.ini`
 
 Pre-install scripts run **before** the virtual environment is created and packages are installed. This prevents wasting time installing packages when critical requirements are missing (e.g., GPU drivers for CUDA applications).
 
+Because they run before the venv exists, pre-install scripts do **not** receive the `QUICKSTRAP_*` environment variables or `VIRTUAL_ENV` - those are provided to post-install and uninstall scripts only.
+
 Add pre-install scripts to your profile:
 
 ```ini
@@ -233,18 +237,23 @@ Quickstrap includes template scripts in `quickstrap/scripts/`:
 - `check_file_exists.sh` - Verify required files exist
 - `check_cups_printing.sh` - Verify CUPS printing system
 
+**Uninstall Scripts** (run during `./install.py --uninstall`):
+
+- `uninstall_example.sh` - Template showing how to undo out-of-tree side effects
+
 Simply uncomment and customize these templates for your needs. All templates include extensive examples showing common use cases.
 
 If the script fails, the installation fails.
 
 ### Environment Variables Available to Scripts
 
-Post-install scripts have access to these environment variables:
+Post-install and uninstall scripts have access to these environment variables:
 
 - `QUICKSTRAP_APP_NAME` - The application name from metadata
 - `QUICKSTRAP_CONFIG_DIR` - Path to the project directory (where config files are stored)
 - `VIRTUAL_ENV` - Path to the virtual environment (e.g., `/path/to/project/venv`)
 - `PATH` - Automatically updated to include the venv's `bin` directory first. This ensures that when your script calls `python`, `pip`, or any installed Python tools, the versions from the virtual environment are used instead of system versions. You can directly use commands like `python script.py` without specifying the full venv path.
+- `QUICKSTRAP_STATE_FILE` - Path to a state file shared by all of this installation's scripts (see Uninstall Scripts below). Install scripts may record runtime artifacts here for the matching uninstall script to read back.
 
 Example usage in a script:
 
@@ -254,6 +263,93 @@ echo "Setting up $QUICKSTRAP_APP_NAME..."
 # Config files are in the project directory
 CONFIG_PATH="$QUICKSTRAP_CONFIG_DIR"
 ```
+
+### Output and Interactive Prompts
+
+Quickstrap **captures** each lifecycle script's stdout/stderr and shows it only
+after the script exits; stdin is not connected to your terminal. Plain `echo`
+output therefore appears delayed, and an interactive prompt (e.g. a `sudo`
+password) hangs silently with no visible prompt.
+
+This matters most for uninstall scripts, whose job is often to undo privileged
+side effects (`sudo rm` in `/etc`, group changes) interactively. To talk to the
+user in real time, route I/O through the controlling terminal `/dev/tty`; when
+there is no terminal (a piped/non-interactive install), print the commands for
+the user to run manually instead of blocking:
+
+```bash
+# Detect a usable terminal (absent when the installer output is piped)
+if { true >/dev/tty; } 2>/dev/null; then TTY=/dev/tty; else TTY=""; fi
+say() { if [ -n "$TTY" ]; then printf '%s\n' "$*" >"$TTY"; else printf '%s\n' "$*"; fi; }
+
+say "About to remove /etc/foo - this needs sudo"
+if [ -n "$TTY" ]; then
+    # run sudo against the terminal so its password prompt is visible and readable
+    sudo rm -f /etc/foo <"$TTY" >"$TTY" 2>&1
+else
+    say "No terminal available - run manually:  sudo rm -f /etc/foo"
+fi
+```
+
+## Uninstall Scripts
+
+Quickstrap can uninstall an application with `./install.py --uninstall`. The
+**project-owned** parts are always removed automatically:
+
+- the `venv/` virtual environment (this also removes every Python package - they
+  live only inside the venv, so there is nothing else to undo)
+- generated files: `<app>_profile.ini`, `requirements_frozen.txt`, `install.log`,
+  and the shared `<app>.state` file
+
+**System packages (apt/dpkg) are never removed automatically** - the installer
+only ever asked you to install them, and other software may depend on them.
+The uninstaller lists the packages that were required and prints a ready-to-use
+`sudo apt remove ...` command so you can decide.
+
+The only thing Quickstrap cannot undo on its own are **out-of-tree side effects**
+of your post-install scripts (desktop entries, databases, config directories).
+For those, define a symmetric `uninstall_scripts` next to your `post_install_scripts`:
+
+```ini
+[profile:standard]
+...
+post_install_scripts = quickstrap/scripts/setup_desktop_entry.sh
+uninstall_scripts = quickstrap/scripts/remove_desktop_entry.sh
+```
+
+Uninstall scripts run with the **same environment** as your post-install scripts,
+so deterministic paths (e.g. a desktop entry derived from `$QUICKSTRAP_APP_NAME`)
+can simply be recomputed and removed - no recorded state needed.
+
+For **non-deterministic** state (a chosen free port, a generated path, a random
+DB name), all scripts of an installation share one state file via
+`$QUICKSTRAP_STATE_FILE` (so the install and uninstall side resolve to the same
+path). Your install script records into it, your uninstall script reads it back:
+
+```bash
+# in your post-install script:
+echo "$generated_db_path" >> "$QUICKSTRAP_STATE_FILE"
+
+# in your uninstall script:
+while IFS= read -r line; do
+    case "$line" in ''|\#*) continue ;; esac   # skip blanks and comments
+    rm -rf "$line"
+done < "$QUICKSTRAP_STATE_FILE"
+```
+
+**State file convention** (recommended, not enforced - Quickstrap never reads the
+file itself): UTF-8, one entry per line, `#` comments and blank lines ignored, and
+by default each line is an absolute path to remove. Scripts that need richer state
+may use their own `key=value` format. A script that records nothing simply ignores
+the variable - no empty files are forced. See `quickstrap/scripts/uninstall_example.sh`.
+
+If an uninstall script fails, Quickstrap warns and continues removing the rest
+(so you are never left with a half-removed installation) and reports the failures
+at the end.
+
+If the installation record (`<app>_profile.ini`) is missing - e.g. after a partial
+or broken install - Quickstrap still removes the project-owned parts it can find
+(best effort) and warns that uninstall scripts cannot be run without it.
 
 ## Usage
 
@@ -307,6 +403,50 @@ Validates your profile configuration without installing anything. Checks:
 ./install.py --update-python        # Update packages
 ```
 
+### Uninstall
+
+```bash
+./install.py --uninstall --dry-run  # Show what would be removed, change nothing
+./install.py --uninstall            # Uninstall (asks for confirmation)
+./install.py --uninstall --yes      # Uninstall without confirmation
+```
+
+Removes the virtual environment and generated files, runs any `uninstall_scripts`
+defined for the installed profile, and lists the system packages that were
+required so you can remove them manually. See [Uninstall Scripts](#uninstall-scripts).
+
+### Framework Version
+
+```bash
+./install.py --version   # e.g. "quickstrap 1.0.0"
+```
+
+Quickstrap stamps its engine with a version that is kept **in lock-step with the
+git tag** on GitHub (tag `v<VERSION>`), so a project always knows exactly which
+engine it carries. The version is bumped by Quickstrap maintainers when the
+engine changes - not by the projects that embed it.
+
+### Update the Framework
+
+```bash
+./install.py --update-framework --dry-run   # Show which engine files would change
+./install.py --update-framework             # Update from the official GitHub repo
+./install.py --update-framework --yes       # Update without confirmation
+./install.py --update-framework --source /path/to/quickstrap   # Update from a local checkout
+```
+
+Refreshes only the **framework-owned** engine files - `install.py`, `start.sh`,
+`quickstrap/activate.sh`, and the reference `README.quickstrap.md` (if present).
+Your **project-owned** files are never touched: `installation_profiles.ini`,
+`requirements_*`, and your own `quickstrap/scripts/`. By default the latest
+version is fetched from GitHub (`git clone --depth 1`); `--source` accepts a
+local checkout or an alternate git URL for offline or pre-release updates.
+
+This is the maintainable counterpart to the copy-and-go model: a project pins a
+known engine version and pulls updates deliberately, instead of silently drifting
+from upstream. Review the result with `git diff` and run `./install.py --validate`
+afterwards.
+
 ### Start Application
 
 ```bash
@@ -349,6 +489,7 @@ Installation profile configuration:
 | `system_requirements`  | No       | Path to system packages file (e.g., `quickstrap/requirements_system.txt`)     |
 | `pre_install_scripts`  | No       | Comma-separated list of pre-install scripts (run before venv creation)        |
 | `post_install_scripts` | No       | Comma-separated list of post-install scripts (run after package installation) |
+| `uninstall_scripts`    | No       | Comma-separated list of uninstall scripts (run during `--uninstall`)          |
 
 ### Example Configuration
 
@@ -399,7 +540,8 @@ your-project/
 │       ├── setup_config_directory.sh  # Post: Config directory setup
 │       ├── setup_desktop_entry.sh     # Post: Desktop integration
 │       ├── check_file_exists.sh       # Post: File verification
-│       └── check_cups_printing.sh     # Post: Printing system check
+│       ├── check_cups_printing.sh     # Post: Printing system check
+│       └── uninstall_example.sh       # Uninstall: undo out-of-tree side effects
 └── venv/                              # Virtual environment (created by install.py)
 ```
 
