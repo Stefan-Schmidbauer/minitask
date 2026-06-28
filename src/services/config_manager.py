@@ -10,7 +10,30 @@ logger = logging.getLogger("minitask.config")
 KEYRING_SERVICE = "minitask"
 
 
+def _ensure_session_bus() -> None:
+    """Reconstruct the D-Bus session address when we're launched in a stripped
+    environment.
+
+    MCP clients (e.g. Claude Desktop) spawn the server with a minimal env that
+    drops DBUS_SESSION_BUS_ADDRESS. Without it, the SecretService keyring
+    backend can't reach the running daemon and silently degrades to a failing
+    backend. The session bus socket lives at $XDG_RUNTIME_DIR/bus, which is
+    /run/user/<uid>/bus by default — derive it from the current uid so this
+    works on any machine without hardcoding.
+    """
+    if os.name == "nt" or sys.platform == "darwin":
+        return
+    if os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
+        return
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    bus_path = os.path.join(runtime_dir, "bus")
+    if os.path.exists(bus_path):
+        os.environ.setdefault("XDG_RUNTIME_DIR", runtime_dir)
+        os.environ["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={bus_path}"
+
+
 def _keyring_available() -> bool:
+    _ensure_session_bus()
     if os.name == "nt":
         # On Windows: call keyring directly — no Qt/D-Bus conflicts exist
         try:
