@@ -22,6 +22,8 @@ This document is the detailed reference for the tools themselves.
   off in the desktop app. There is no separate "done" list.
 - **Dates** are plain `YYYY-MM-DD` strings (the `DUE` date), with no time
   component.
+- **Notes** map to the iCalendar `DESCRIPTION` property — a free-text field
+  shown in the desktop app's edit dialog and flagged with an icon in the list.
 
 ## Tools
 
@@ -40,6 +42,7 @@ List all open (incomplete) tasks in the current calendar.
   | `date` | string | Due date `YYYY-MM-DD`, or `""` if none |
   | `starred` | bool | `true` = `PRIORITY:1` set |
   | `completed` | bool | Always `false` here (completed tasks aren't listed) |
+  | `note` | string | Free-text note (the `DESCRIPTION`), or `""` if none |
 
 ### `create_task`
 
@@ -48,6 +51,7 @@ Create a new task.
 - **Parameters:**
   - `title` (string, required) — the task summary
   - `date` (string, optional) — due date `YYYY-MM-DD`; **defaults to today** if omitted
+  - `note` (string, optional) — free-text note (the `DESCRIPTION`); empty = no note
 - **Returns:** confirmation string
 
 ### `update_task`
@@ -61,6 +65,10 @@ task without re-sending its title.
   - `title` (string, optional) — new title; empty = keep existing title
   - `date` (string, optional) — new due date `YYYY-MM-DD`; empty = keep existing date
   - `starred` (bool, optional) — `true` = add star, `false` = remove star, omit = keep unchanged
+  - `note` (string, optional) — new note text; omit = keep unchanged. To remove
+    the note, use `clear_note` (below) rather than an empty string, since some MCP
+    clients drop empty-string arguments before they reach the server.
+  - `clear_note` (bool, optional) — `true` = delete the note entirely; takes precedence over `note`
 - **Returns:** confirmation string
 
 ### `complete_task`

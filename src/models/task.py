@@ -9,3 +9,4 @@ class Task:
     date: str = ""
     completed: bool = False
     starred: bool = False
+    note: str = ""

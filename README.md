@@ -13,7 +13,7 @@ A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) a
 
 - **MCP server included** — manage tasks via natural language from any MCP-compatible client: Claude Code, Claude Desktop, [Cowork](https://www.anthropic.com/product/claude-cowork), and more
 - Connect to any CalDAV server (e.g. Nextcloud, mailbox.org, Radicale)
-- Create, edit, and complete tasks with due dates
+- Create, edit, and complete tasks with due dates and free-text notes
 - Calendar popup for date selection
 - Postpone tasks by +1 day, +1 week, or +1 month
 - Set any task to today with one click
@@ -181,8 +181,8 @@ Restart Claude Code — the MCP server starts automatically as a subprocess, no 
 | Tool | Description |
 |---|---|
 | `list_tasks` | Show all open tasks |
-| `create_task` | Create a task (title + optional due date) |
-| `update_task` | Edit a task — pass only the fields you want to change (title, date, and/or star); the rest is kept |
+| `create_task` | Create a task (title + optional due date and note) |
+| `update_task` | Edit a task — pass only the fields you want to change (title, date, star, and/or note); the rest is kept |
 | `complete_task` | Mark a task as done — removes it, same as checking it off in the app |
 | `catchup` | Move all overdue tasks to today — same as "Catch Up" in the app |
 | `list_calendars` | *(Setup)* List all calendars on the CalDAV server |

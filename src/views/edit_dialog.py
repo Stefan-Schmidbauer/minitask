@@ -8,21 +8,23 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLineEdit,
     QPushButton,
+    QTextEdit,
     QVBoxLayout,
 )
 
 
 class EditDialog(QDialog):
-    def __init__(self, title: str, date_str: str, parent=None):
+    def __init__(self, title: str, date_str: str, note: str = "", parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Task")
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(520)
         self.setModal(True)
         self._result_title: str | None = None
         self._result_date: str | None = None
-        self._setup_ui(title, date_str)
+        self._result_note: str | None = None
+        self._setup_ui(title, date_str, note)
 
-    def _setup_ui(self, title: str, date_str: str):
+    def _setup_ui(self, title: str, date_str: str, note: str):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
@@ -70,6 +72,17 @@ class EditDialog(QDialog):
             self.date_edit.setDate(date.today())
         form.addRow("Due:", self.date_edit)
 
+        self.note_edit = QTextEdit()
+        self.note_edit.setPlainText(note)
+        self.note_edit.setPlaceholderText("Optional note...")
+        self.note_edit.setAcceptRichText(False)
+        self.note_edit.setFixedHeight(175)
+        self.note_edit.setStyleSheet(
+            "QTextEdit { padding: 4px 8px; border: 1px solid #ccc; "
+            "border-radius: 4px; font-size: 13px; }"
+        )
+        form.addRow("Note:", self.note_edit)
+
         layout.addLayout(form)
 
         btn_layout = QHBoxLayout()
@@ -104,9 +117,10 @@ class EditDialog(QDialog):
             return
         self._result_title = title
         self._result_date = self.date_edit.date().toString("yyyy-MM-dd")
+        self._result_note = self.note_edit.toPlainText().strip()
         self.accept()
 
-    def get_result(self) -> tuple[str, str] | None:
+    def get_result(self) -> tuple[str, str, str] | None:
         if self._result_title is not None:
-            return self._result_title, self._result_date
+            return self._result_title, self._result_date, self._result_note
         return None

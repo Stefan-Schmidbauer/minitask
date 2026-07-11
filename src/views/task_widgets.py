@@ -27,8 +27,9 @@ from src.utils.date_helpers import (
 COL_STAR = 0
 COL_DONE = 1
 COL_TITLE = 2
-COL_DATE = 3
-COL_ACTIONS = 4
+COL_NOTE = 3
+COL_DATE = 4
+COL_ACTIONS = 5
 
 
 class TaskTable(QTreeWidget):
@@ -42,7 +43,7 @@ class TaskTable(QTreeWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setHeaderLabels(["\u2605", "\u2713", "Title", "Due Date", "Actions"])
+        self.setHeaderLabels(["\u2605", "\u2713", "Title", "Note", "Due Date", "Actions"])
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -55,13 +56,16 @@ class TaskTable(QTreeWidget):
         header.setSectionResizeMode(COL_STAR, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_DONE, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_TITLE, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(COL_NOTE, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_DATE, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(COL_ACTIONS, QHeaderView.ResizeMode.Fixed)
         self.setColumnWidth(COL_STAR, 24)
         self.setColumnWidth(COL_DONE, 24)
+        self.setColumnWidth(COL_NOTE, 44)
         self.setColumnWidth(COL_DATE, 110)
         self.setColumnWidth(COL_ACTIONS, 135)
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.headerItem().setTextAlignment(COL_NOTE, Qt.AlignmentFlag.AlignCenter)
         self.headerItem().setTextAlignment(COL_DATE, Qt.AlignmentFlag.AlignCenter)
         self.headerItem().setTextAlignment(COL_ACTIONS, Qt.AlignmentFlag.AlignCenter)
 
@@ -136,6 +140,25 @@ class TaskTable(QTreeWidget):
         else:
             title_label.setStyleSheet("background: transparent;")
         self.setItemWidget(item, COL_TITLE, title_label)
+
+        # Note indicator (only shown when a note exists)
+        if task.note:
+            note_btn = QPushButton("\U0001f5d2")
+            note_btn.setFixedSize(22, 22)
+            note_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            note_btn.setStyleSheet(
+                "border: none; background: transparent; color: #337ab7; font-size: 14px;"
+            )
+            note_btn.setToolTip(task.note)
+            note_btn.clicked.connect(
+                lambda checked, uri=task.uri: self.edit_requested.emit(uri)
+            )
+            note_widget = QWidget()
+            note_layout = QHBoxLayout(note_widget)
+            note_layout.setContentsMargins(0, 0, 0, 0)
+            note_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            note_layout.addWidget(note_btn)
+            self.setItemWidget(item, COL_NOTE, note_widget)
 
         # Date
         date_text = format_date_display(task.date)
@@ -219,7 +242,7 @@ class TaskTable(QTreeWidget):
 
         # Starred row background
         if task.starred:
-            for col in range(5):
+            for col in range(6):
                 item.setBackground(col, QColor("#f5eef8"))
 
     def _on_click(self, item, column):

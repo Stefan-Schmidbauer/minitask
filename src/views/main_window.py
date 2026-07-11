@@ -528,17 +528,18 @@ class MainWindow(QMainWindow):
         if not task:
             return
 
-        dialog = EditDialog(task.title, task.date, self)
+        dialog = EditDialog(task.title, task.date, task.note, self)
         if dialog.exec() == EditDialog.DialogCode.Accepted:
             result = dialog.get_result()
             if result:
-                new_title, new_date = result
+                new_title, new_date, new_note = result
                 self._run_worker(
                     "update",
                     uri=uri,
                     title=new_title,
                     date_str=new_date,
                     starred=task.starred,
+                    note=new_note,
                 )
 
     def _on_increment(self, uri: str):

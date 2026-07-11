@@ -61,7 +61,7 @@ class CalDAVService:
                 logger.warning("Failed to parse todo: %s", e)
         return tasks
 
-    def create_task(self, title: str, date_str: str = "") -> bool:
+    def create_task(self, title: str, date_str: str = "", note: str = "") -> bool:
         if not self._calendar:
             raise ConnectionError("No calendar selected")
         uid = str(uuid.uuid4()).upper()
@@ -79,6 +79,8 @@ class CalDAVService:
         ]
         if date_str:
             lines.append(f"DUE;VALUE=DATE:{date_str.replace('-', '')}")
+        if note:
+            lines.append(f"DESCRIPTION:{self._escape_ical(note)}")
         lines += ["END:VTODO", "END:VCALENDAR"]
         try:
             self._calendar.save_todo("\r\n".join(lines) + "\r\n")
@@ -89,7 +91,7 @@ class CalDAVService:
             raise
 
     def update_task(self, uri: str, title: str = "", date_str: str = "",
-                    starred: bool | None = None) -> bool:
+                    starred: bool | None = None, note: str | None = None) -> bool:
         if not self._calendar:
             raise ConnectionError("No calendar selected")
         try:
@@ -109,6 +111,18 @@ class CalDAVService:
                     existing_due = line
                 elif line.startswith("PRIORITY:"):
                     existing_priority = line
+
+            # DESCRIPTION can be folded across multiple physical lines, so read it
+            # via the icalendar parser (which unfolds/unescapes) instead of raw lines.
+            existing_note = ""
+            try:
+                for component in todo_obj.icalendar_instance.walk("VTODO"):
+                    desc = component.get("description")
+                    if desc:
+                        existing_note = str(desc)
+                    break
+            except Exception as e:
+                logger.warning("Failed to read existing description: %s", e)
 
             now = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
             lines = [
@@ -135,6 +149,13 @@ class CalDAVService:
             elif starred is None and existing_priority:
                 lines.append(existing_priority)
             # starred is False → kein PRIORITY-Eintrag = Stern entfernen
+
+            # note is None → keep existing; "" → clear; text → set
+            if note is not None:
+                if note:
+                    lines.append(f"DESCRIPTION:{self._escape_ical(note)}")
+            elif existing_note:
+                lines.append(f"DESCRIPTION:{self._escape_ical(existing_note)}")
 
             lines.append("STATUS:NEEDS-ACTION")
 
@@ -182,6 +203,8 @@ class CalDAVService:
                 priority = component.get("priority")
                 starred = int(str(priority)) == 1 if priority else False
                 completed = component.get("completed") is not None
+                description = component.get("description")
+                note = str(description) if description else ""
                 return Task(
                     id=uid,
                     uri=str(todo_obj.url),
@@ -189,6 +212,7 @@ class CalDAVService:
                     date=date_str,
                     completed=completed,
                     starred=starred,
+                    note=note,
                 )
         except Exception as e:
             logger.warning("Parse error: %s", e)

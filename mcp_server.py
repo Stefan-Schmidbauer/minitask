@@ -90,19 +90,26 @@ def list_tasks() -> list[dict]:
             "date": t.date,
             "starred": t.starred,
             "completed": t.completed,
+            "note": t.note,
         }
         for t in tasks
     ]
 
 
 @mcp.tool()
-def create_task(title: str, date: str = "") -> str:
-    """Create a new task. Date format: YYYY-MM-DD (e.g. 2026-05-30). Defaults to today if omitted."""
+def create_task(title: str, date: str = "", note: str = "") -> str:
+    """Create a new task. Date format: YYYY-MM-DD (e.g. 2026-05-30). Defaults to today if omitted.
+
+    Args:
+        title: The task summary
+        date: Due date (YYYY-MM-DD), defaults to today if omitted
+        note: Optional free-text note (the VTODO DESCRIPTION), empty = no note
+    """
     _ensure_connected()
     if not date:
         from datetime import date as _date
         date = _date.today().isoformat()
-    _service.create_task(title, date)
+    _service.create_task(title, date, note)
     return f"Task created: {title}"
 
 
@@ -112,6 +119,8 @@ def update_task(
     title: str = "",
     date: str = "",
     starred: bool | None = None,
+    note: str | None = None,
+    clear_note: bool = False,
 ) -> str:
     """Update an existing task. The URI comes from list_tasks.
 
@@ -122,9 +131,13 @@ def update_task(
         title: New task title, empty = keep existing title
         date: Due date (YYYY-MM-DD), empty = keep existing date
         starred: True = add star, False = remove star, omit = keep unchanged
+        note: New note text, omit = keep unchanged. To remove the note, set
+            clear_note=True instead of passing an empty string.
+        clear_note: True = delete the note entirely. Takes precedence over note.
     """
     _ensure_connected()
-    _service.update_task(uri, title, date, starred)
+    effective_note = "" if clear_note else note
+    _service.update_task(uri, title, date, starred, effective_note)
     return f"Task updated: {title}" if title else "Task updated."
 
 
