@@ -22,7 +22,7 @@ A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) a
 - Color-coded due dates (overdue, today, future)
 - Search and filter tasks
 - Auto-sync every 60 seconds (toggleable)
-- Undo completed (deleted) tasks within 5 seconds
+- Undo completed (deleted) tasks — optional, with a configurable grace period (1–60 s)
 - Keyboard shortcuts for fast workflow
 - Always-on-top mode
 - Secure credential storage via system keyring

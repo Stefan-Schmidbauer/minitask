@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -29,7 +30,9 @@ from src.views.task_widgets import TaskTable
 logger = logging.getLogger("minitask.ui")
 
 AUTO_SYNC_INTERVAL = 60000  # 60 seconds
-UNDO_TIMEOUT = 5000  # 5 seconds to undo
+UNDO_DEFAULT_SECONDS = 5  # default grace period before a completed task is deleted
+UNDO_MIN_SECONDS = 1
+UNDO_MAX_SECONDS = 60
 
 
 class CalDAVWorker(QThread):
@@ -85,6 +88,11 @@ class MainWindow(QMainWindow):
         self._search_text = ""
         self._pending_delete: dict | None = None  # For undo
         self._undo_timer: QTimer | None = None
+        config = self.config_manager.load()
+        self._undo_enabled: bool = config.get("undo_enabled", True)
+        self._undo_seconds: int = self._clamp_undo_seconds(
+            config.get("undo_seconds", UNDO_DEFAULT_SECONDS)
+        )
         self._setup_ui()
         self._setup_shortcuts()
         self._setup_auto_sync()
@@ -129,6 +137,25 @@ class MainWindow(QMainWindow):
         self._on_top_checkbox.setToolTip("Keep window always on top")
         self._on_top_checkbox.toggled.connect(self._on_always_on_top_toggled)
         toolbar.addWidget(self._on_top_checkbox)
+
+        toolbar.addSeparator()
+
+        self._undo_checkbox = QCheckBox("Undo")
+        self._undo_checkbox.setToolTip(
+            "Show an undo bar with a grace period before a completed task is deleted"
+        )
+        self._undo_checkbox.setChecked(self._undo_enabled)
+        self._undo_checkbox.toggled.connect(self._on_undo_enabled_toggled)
+        toolbar.addWidget(self._undo_checkbox)
+
+        self._undo_seconds_spin = QSpinBox()
+        self._undo_seconds_spin.setRange(UNDO_MIN_SECONDS, UNDO_MAX_SECONDS)
+        self._undo_seconds_spin.setValue(self._undo_seconds)
+        self._undo_seconds_spin.setSuffix(" s")
+        self._undo_seconds_spin.setToolTip("Seconds to undo before the task is deleted")
+        self._undo_seconds_spin.setEnabled(self._undo_enabled)
+        self._undo_seconds_spin.valueChanged.connect(self._on_undo_seconds_changed)
+        toolbar.addWidget(self._undo_seconds_spin)
 
         # About and Quit removed from toolbar — they live in the bottom bar now
 
@@ -372,6 +399,37 @@ class MainWindow(QMainWindow):
         self.setGeometry(geo)
         self.show()
 
+    # --- Undo settings ---
+
+    @staticmethod
+    def _clamp_undo_seconds(value) -> int:
+        try:
+            seconds = int(value)
+        except (TypeError, ValueError):
+            return UNDO_DEFAULT_SECONDS
+        return max(UNDO_MIN_SECONDS, min(UNDO_MAX_SECONDS, seconds))
+
+    def _on_undo_enabled_toggled(self, checked: bool):
+        self._undo_enabled = checked
+        self._undo_seconds_spin.setEnabled(checked)
+        # If undo gets disabled while a delete is pending, flush it now
+        if not checked and self._pending_delete:
+            self._execute_pending_delete()
+        self._save_undo_prefs()
+        self.status_label.setText(
+            "Undo enabled" if checked else "Undo disabled"
+        )
+
+    def _on_undo_seconds_changed(self, value: int):
+        self._undo_seconds = self._clamp_undo_seconds(value)
+        self._save_undo_prefs()
+
+    def _save_undo_prefs(self):
+        config = self.config_manager.load()
+        config["undo_enabled"] = self._undo_enabled
+        config["undo_seconds"] = self._undo_seconds
+        self.config_manager.save(config)
+
     # --- Search ---
 
     def _on_search_changed(self, text: str):
@@ -417,6 +475,13 @@ class MainWindow(QMainWindow):
         if self._pending_delete:
             self._execute_pending_delete()
 
+        # Undo disabled: delete immediately, no grace period
+        if not self._undo_enabled:
+            self.tasks = [t for t in self.tasks if t.uri != uri]
+            self._render_tasks()
+            self._run_worker("delete", uri=uri)
+            return
+
         # Store for undo instead of deleting immediately
         self._pending_delete = {"uri": uri, "task": task}
 
@@ -425,7 +490,9 @@ class MainWindow(QMainWindow):
         self._render_tasks()
 
         # Show undo bar
-        self.undo_label.setText(f'Completed "{task.title}" — deleting in 5s...')
+        self.undo_label.setText(
+            f'Completed "{task.title}" — deleting in {self._undo_seconds}s...'
+        )
         self.undo_bar.show()
 
         # Start undo timer
@@ -434,7 +501,7 @@ class MainWindow(QMainWindow):
         self._undo_timer = QTimer(self)
         self._undo_timer.setSingleShot(True)
         self._undo_timer.timeout.connect(self._execute_pending_delete)
-        self._undo_timer.start(UNDO_TIMEOUT)
+        self._undo_timer.start(self._undo_seconds * 1000)
 
     def _undo_complete(self):
         if not self._pending_delete:
