@@ -528,17 +528,17 @@ class MainWindow(QMainWindow):
         if not task:
             return
 
-        dialog = EditDialog(task.title, task.date, task.note, self)
+        dialog = EditDialog(task.title, task.date, task.note, task.starred, self)
         if dialog.exec() == EditDialog.DialogCode.Accepted:
             result = dialog.get_result()
             if result:
-                new_title, new_date, new_note = result
+                new_title, new_date, new_note, new_starred = result
                 self._run_worker(
                     "update",
                     uri=uri,
                     title=new_title,
                     date_str=new_date,
-                    starred=task.starred,
+                    starred=new_starred,
                     note=new_note,
                 )
 

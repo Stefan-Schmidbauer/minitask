@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
 
 
 class EditDialog(QDialog):
-    def __init__(self, title: str, date_str: str, note: str = "", parent=None):
+    def __init__(self, title: str, date_str: str, note: str = "",
+                 starred: bool = False, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Task")
         self.setMinimumWidth(520)
@@ -22,6 +23,8 @@ class EditDialog(QDialog):
         self._result_title: str | None = None
         self._result_date: str | None = None
         self._result_note: str | None = None
+        self._result_starred: bool = starred
+        self._starred = starred
         self._setup_ui(title, date_str, note)
 
     def _setup_ui(self, title: str, date_str: str, note: str):
@@ -36,7 +39,20 @@ class EditDialog(QDialog):
             "padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
         )
         self.title_edit.selectAll()
-        form.addRow("Title:", self.title_edit)
+
+        # Star button next to the title field
+        self.star_btn = QPushButton()
+        self.star_btn.setFixedSize(22, 22)
+        self.star_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.star_btn.setToolTip("Toggle priority")
+        self.star_btn.clicked.connect(self._toggle_star)
+        self._update_star_btn()
+
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        title_row.addWidget(self.title_edit)
+        title_row.addWidget(self.star_btn)
+        form.addRow("Title:", title_row)
 
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
@@ -111,6 +127,17 @@ class EditDialog(QDialog):
 
         self.title_edit.setFocus()
 
+    def _update_star_btn(self):
+        self.star_btn.setText("★" if self._starred else "☆")
+        color = "#f0ad4e" if self._starred else "#bbb"
+        self.star_btn.setStyleSheet(
+            f"border: none; background: transparent; color: {color}; font-size: 16px;"
+        )
+
+    def _toggle_star(self):
+        self._starred = not self._starred
+        self._update_star_btn()
+
     def _save(self):
         title = self.title_edit.text().strip()
         if not title:
@@ -118,9 +145,11 @@ class EditDialog(QDialog):
         self._result_title = title
         self._result_date = self.date_edit.date().toString("yyyy-MM-dd")
         self._result_note = self.note_edit.toPlainText().strip()
+        self._result_starred = self._starred
         self.accept()
 
-    def get_result(self) -> tuple[str, str, str] | None:
+    def get_result(self) -> tuple[str, str, str, bool] | None:
         if self._result_title is not None:
-            return self._result_title, self._result_date, self._result_note
+            return (self._result_title, self._result_date,
+                    self._result_note, self._result_starred)
         return None
