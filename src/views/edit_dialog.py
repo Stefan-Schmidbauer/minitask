@@ -13,6 +13,24 @@ from PySide6.QtWidgets import (
 )
 
 
+CALENDAR_STYLE = (
+    "QCalendarWidget QToolButton {"
+    "  color: #333; font-size: 13px; font-weight: bold;"
+    "  background: #f0f0f0; padding: 4px 8px;"
+    "}"
+    "QCalendarWidget QToolButton:hover {"
+    "  background: #e0e0e0;"
+    "}"
+    "QCalendarWidget QWidget#qt_calendar_navigationbar {"
+    "  background: #f0f0f0;"
+    "}"
+    "QCalendarWidget QSpinBox {"
+    "  color: #333; font-size: 13px; font-weight: bold;"
+    "  background: #f0f0f0; selection-background-color: #337ab7;"
+    "}"
+)
+
+
 class EditDialog(QDialog):
     def __init__(self, title: str, date_str: str, note: str = "",
                  starred: bool = False, parent=None):
@@ -65,22 +83,7 @@ class EditDialog(QDialog):
             "  image: url(assets/dropdown_arrow.svg); }"
         )
         calendar = self.date_edit.calendarWidget()
-        calendar.setStyleSheet(
-            "QCalendarWidget QToolButton {"
-            "  color: #333; font-size: 13px; font-weight: bold;"
-            "  background: #f0f0f0; padding: 4px 8px;"
-            "}"
-            "QCalendarWidget QToolButton:hover {"
-            "  background: #e0e0e0;"
-            "}"
-            "QCalendarWidget QWidget#qt_calendar_navigationbar {"
-            "  background: #f0f0f0;"
-            "}"
-            "QCalendarWidget QSpinBox {"
-            "  color: #333; font-size: 13px; font-weight: bold;"
-            "  background: #f0f0f0; selection-background-color: #337ab7;"
-            "}"
-        )
+        calendar.setStyleSheet(CALENDAR_STYLE)
         if date_str:
             parts = date_str.split("-")
             self.date_edit.setDate(date(int(parts[0]), int(parts[1]), int(parts[2])))

@@ -1,7 +1,10 @@
-from PySide6.QtCore import QSize, Qt, Signal
+from datetime import date
+
+from PySide6.QtCore import QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCalendarWidget,
     QCheckBox,
     QHBoxLayout,
     QHeaderView,
@@ -22,6 +25,7 @@ from src.utils.date_helpers import (
     format_date_display,
     get_date_class,
 )
+from src.views.edit_dialog import CALENDAR_STYLE
 
 
 COL_STAR = 0
@@ -40,6 +44,7 @@ class TaskTable(QTreeWidget):
     increment_week_requested = Signal(str)
     increment_month_requested = Signal(str)
     today_requested = Signal(str)
+    date_change_requested = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -104,6 +109,7 @@ class TaskTable(QTreeWidget):
     def _add_task_row(self, task):
         item = QTreeWidgetItem()
         item.setData(0, Qt.ItemDataRole.UserRole, task.uri)
+        item.setData(COL_DATE, Qt.ItemDataRole.UserRole, task.date)
         item.setSizeHint(0, QSize(0, 42))
         self.addTopLevelItem(item)
 
@@ -164,6 +170,8 @@ class TaskTable(QTreeWidget):
         date_text = format_date_display(task.date)
         date_label = QLabel(date_text)
         date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        date_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        date_label.setToolTip("Change date")
         font = date_label.font()
         font.setPointSize(11)
         date_label.setFont(font)
@@ -246,7 +254,39 @@ class TaskTable(QTreeWidget):
                 item.setBackground(col, QColor("#f5eef8"))
 
     def _on_click(self, item, column):
+        uri = item.data(0, Qt.ItemDataRole.UserRole)
+        if not uri:
+            return
         if column == COL_TITLE:
-            uri = item.data(0, Qt.ItemDataRole.UserRole)
-            if uri:
-                self.edit_requested.emit(uri)
+            self.edit_requested.emit(uri)
+        elif column == COL_DATE:
+            self._show_date_popup(item, uri)
+
+    def _show_date_popup(self, item, uri):
+        current = item.data(COL_DATE, Qt.ItemDataRole.UserRole)
+        calendar = QCalendarWidget(self)
+        calendar.setWindowFlags(Qt.WindowType.Popup)
+        calendar.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        calendar.setStyleSheet(CALENDAR_STYLE)
+        calendar.setSelectedDate(date.fromisoformat(current) if current else date.today())
+
+        def on_picked(qdate):
+            calendar.close()
+            new_date = qdate.toString("yyyy-MM-dd")
+            if new_date != current:
+                self.date_change_requested.emit(uri, new_date)
+
+        calendar.clicked.connect(on_picked)
+        calendar.activated.connect(on_picked)
+
+        # Open below the date cell, kept inside the visible screen area
+        rect = self.visualItemRect(item)
+        x = self.header().sectionViewportPosition(COL_DATE)
+        pos = self.viewport().mapToGlobal(QPoint(x, rect.bottom()))
+        size = calendar.sizeHint()
+        screen = self.screen().availableGeometry()
+        if pos.y() + size.height() > screen.bottom():
+            pos.setY(self.viewport().mapToGlobal(rect.topLeft()).y() - size.height())
+        pos.setX(max(screen.left(), min(pos.x(), screen.right() - size.width())))
+        calendar.move(pos)
+        calendar.show()

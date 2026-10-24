@@ -13,7 +13,7 @@ A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) a
 - **AI assistant support** via the separate [MiniTask MCP](https://github.com/Stefan-Schmidbauer/minitask-mcp) server — manage the same tasks in natural language from any MCP-compatible client
 - Connect to any CalDAV server (e.g. Nextcloud, mailbox.org, Radicale)
 - Create, edit, and complete tasks with due dates and free-text notes
-- Calendar popup for date selection
+- Calendar popup for date selection — click a task's due date in the list to change it directly
 - Postpone tasks by +1 day, +1 week, or +1 month
 - Set any task to today with one click
 - "Catch Up" — set all overdue tasks to today at once

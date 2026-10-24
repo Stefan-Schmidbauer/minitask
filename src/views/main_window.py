@@ -264,6 +264,7 @@ class MainWindow(QMainWindow):
         self.task_table.increment_week_requested.connect(self._on_increment_week)
         self.task_table.increment_month_requested.connect(self._on_increment_month)
         self.task_table.today_requested.connect(self._on_set_today)
+        self.task_table.date_change_requested.connect(self._on_set_date)
         main_layout.addWidget(self.task_table, stretch=1)
 
         # Bottom bar: status label + buttons
@@ -656,6 +657,14 @@ class MainWindow(QMainWindow):
             title=task.title,
             date_str=today_iso(),
             starred=task.starred,
+        )
+
+    def _on_set_date(self, uri: str, new_date: str):
+        task = self._find_task(uri)
+        if not task:
+            return
+        self._run_worker(
+            "update", uri=uri, title=task.title, date_str=new_date, starred=task.starred
         )
 
     def _catch_up(self):
