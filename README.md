@@ -3,15 +3,14 @@
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![License](https://img.shields.io/github/license/Stefan-Schmidbauer/minitask)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
-![MCP](https://img.shields.io/badge/MCP-compatible-green)
 
-A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) and python-caldav — with built-in **MCP server** so any MCP-compatible AI client can manage your tasks directly via natural language.
+A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) and python-caldav.
 
 ![MiniTask Screenshot](assets/screenshot.png)
 
 ## Features
 
-- **MCP server included** — manage tasks via natural language from any MCP-compatible client: Claude Code, Claude Desktop, [Cowork](https://www.anthropic.com/product/claude-cowork), and more
+- **AI assistant support** via the separate [MiniTask MCP](https://github.com/Stefan-Schmidbauer/minitask-mcp) server — manage the same tasks in natural language from any MCP-compatible client
 - Connect to any CalDAV server (e.g. Nextcloud, mailbox.org, Radicale)
 - Create, edit, and complete tasks with due dates and free-text notes
 - Calendar popup for date selection
@@ -50,7 +49,7 @@ MiniTask uses [Quickstrap](README.quickstrap.md) for installation and startup.
 ./start.sh     # start the app
 ```
 
-`./install.py` interactively sets up a virtual environment and installs system dependencies (`libgl1`, `libegl1`) and Python packages (`PySide6`, `caldav`, `icalendar`, `keyring`, `mcp`). After that, use `./start.sh` to launch the app.
+`./install.py` interactively sets up a virtual environment and installs system dependencies (`libgl1`, `libegl1`) and Python packages (`PySide6`, `caldav`, `icalendar`, `keyring`). After that, use `./start.sh` to launch the app.
 
 ### Windows (manual)
 
@@ -64,7 +63,7 @@ The desktop app works on Windows, but there is no automated installer. Set up ma
 
 ```cmd
 python -m venv venv
-venv\Scripts\pip install PySide6 caldav icalendar keyring mcp
+venv\Scripts\pip install PySide6 caldav icalendar keyring
 ```
 
    This installs Qt (via PySide6) along with all required libraries — no separate Qt installation needed. On Windows, PySide6 bundles everything including the Qt DLLs, unlike Linux where some system libraries (`libgl1`, `libegl1`) must be installed separately.
@@ -135,87 +134,24 @@ Passwords are stored securely in the system keyring and never written to the con
 - **Linux:** GNOME Keyring or KWallet (accessed via subprocess to avoid Qt/D-Bus conflicts). A running keyring service is required (e.g. `gnome-keyring`, `kwallet`).
 - **Windows:** Windows Credential Manager, accessed directly — no additional setup needed.
 
-## MCP Server (Claude Code Integration)
+## AI Assistant Integration (MCP)
 
-MiniTask includes an MCP server (`mcp_server.py`) that lets Claude manage your tasks directly via natural language.
+MiniTask itself is a desktop app only. To manage your tasks in natural language from an AI assistant (Claude Code, Claude Desktop, [Cowork](https://www.anthropic.com/product/claude-cowork) or any other MCP-compatible client), use **[MiniTask MCP](https://github.com/Stefan-Schmidbauer/minitask-mcp)** — a separate MCP server that works on the same CalDAV tasks and follows the same model as the app.
 
-### Prerequisites
-
-1. Configure credentials — **one of the following:**
-   - **Desktop app already set up:** nothing to do, the MCP server reads credentials from the same keyring
-   - **Without desktop app** (e.g. MCP-only on Windows, or headless Linux): run `setup_credentials.py` once:
-
-```bash
-# Linux
-venv/bin/python setup_credentials.py
-
-# Windows
-venv\Scripts\python setup_credentials.py
-```
-
-`setup_credentials.py` is a small terminal script that asks for your CalDAV URL, username, and password, tests the connection, lets you pick a calendar, and saves everything securely to the system keyring (GNOME Keyring / KWallet on Linux, Windows Credential Manager on Windows). Run it once — or again whenever your credentials change.
-
-### Setup
-
-Copy the example for your system to `.mcp.json` and adjust the paths:
-
-- **Linux:** copy `.mcp.json.linux.example`
-- **Windows:** copy `.mcp.json.windows.example`
-
-**Linux example** (`.mcp.json.linux.example`):
-```json
-{
-  "mcpServers": {
-    "minitask": {
-      "command": "/home/yourname/minitask/venv/bin/python3",
-      "args": ["/home/yourname/minitask/mcp_server.py"]
-    }
-  }
-}
-```
-
-**Windows example** (`.mcp.json.windows.example`):
-```json
-{
-  "mcpServers": {
-    "minitask": {
-      "command": "C:\\Users\\YourName\\minitask\\venv\\Scripts\\python.exe",
-      "args": ["C:\\Users\\YourName\\minitask\\mcp_server.py"]
-    }
-  }
-}
-```
-
-Restart Claude Code — the MCP server starts automatically as a subprocess, no separate service needed.
-
-### Example
+> **Moved:** Earlier versions of MiniTask shipped the MCP server in this repository (`mcp_server.py`, `setup_credentials.py`, `MCP.md` and the `.mcp.json.*.example` files). It now lives in its own repository, [minitask-mcp](https://github.com/Stefan-Schmidbauer/minitask-mcp), and runs as one shared instance on a server, reached over HTTPS — no longer as a local subprocess next to the desktop app.
+>
+> If you used the old setup:
+>
+> - Remove the `minitask` entry pointing to `mcp_server.py` from your `.mcp.json` — that file no longer exists here.
+> - Set up MiniTask MCP as described in its README and connect your client to its HTTPS endpoint.
+> - The tools and their arguments are unchanged, but nothing is shared with the app any more: the CalDAV account is configured on the MCP server, not read from the desktop app's keyring.
+> - The `mcp` Python package is no longer needed in MiniTask's virtual environment.
 
 ![Claude catching up on overdue tasks](assets/minitask_claude_1.png)
 *"Catch me up on my tasks" — Claude moves overdue items to today and returns a structured overview.*
 
 ![Claude adding, rescheduling, and completing tasks](assets/minitask_claude_2.png)
 *Add a starred task, push a deadline, mark one done — natural language, no context switching.*
-
-### Available Tools
-
-| Tool | Description |
-|---|---|
-| `list_tasks` | Show all open tasks |
-| `create_task` | Create a task (title + optional due date and note) |
-| `update_task` | Edit a task — pass only the fields you want to change (title, date, star, and/or note); the rest is kept |
-| `complete_task` | Mark a task as done — removes it, same as checking it off in the app |
-| `catchup` | Move all overdue tasks to today — same as "Catch Up" in the app |
-| `list_calendars` | *(Setup)* List all calendars on the CalDAV server |
-| `set_calendar` | *(Setup)* Switch to a different calendar |
-
-See [MCP.md](MCP.md) for the full tool reference (parameters, return values, and example prompts).
-
-### Credential Security
-
-The MCP server reads credentials from the same system keyring as the desktop app — the password is **never stored in plain text**:
-
-- **Linux:** GNOME Keyring or KWallet
-- **Windows:** Windows Credential Manager (backed by DPAPI, encrypted with your Windows login)
 
 ## Third-party Libraries
 
@@ -227,7 +163,6 @@ MiniTask is built on the following open-source libraries:
 | [caldav](https://github.com/python-caldav/caldav) | CalDAV client library | MIT |
 | [icalendar](https://github.com/collective/icalendar) | iCalendar format parser and generator | BSD |
 | [keyring](https://github.com/jaraco/keyring) | Secure credential storage via system keyring | MIT |
-| [mcp](https://github.com/modelcontextprotocol/python-sdk) | Model Context Protocol SDK (MCP server) | MIT |
 
 ## Contributing
 
