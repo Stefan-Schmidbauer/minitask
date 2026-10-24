@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from src.services.caldav_client import CalDAVService
 from src.services.config_manager import ConfigManager
+from src.utils.single_instance import SingleInstance
 from src.views.main_window import MainWindow
 from src.views.settings_dialog import SettingsDialog
 
@@ -18,6 +19,11 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("MiniTask")
     app.setStyle("Fusion")
+
+    single_instance = SingleInstance(app)
+    if single_instance.notify_running_instance():
+        sys.exit(0)
+    single_instance.listen()
 
     try:
         config_manager = ConfigManager()
@@ -54,5 +60,6 @@ def main():
                 service.set_current_calendar(config["calendar_url"])
 
     window = MainWindow(service, config_manager)
+    single_instance.activation_requested.connect(window.bring_to_front)
     window.show()
     sys.exit(app.exec())

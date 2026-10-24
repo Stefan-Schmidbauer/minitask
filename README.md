@@ -27,6 +27,7 @@ A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) a
 - Always-on-top mode
 - Secure credential storage via system keyring
 - Remembers window position between sessions
+- Single instance — launching MiniTask again brings the running window to the front instead of opening a second one
 
 ## Requirements
 
@@ -83,6 +84,25 @@ venv\Scripts\python main.py
 ```
 
 On first launch, you will be prompted to enter your CalDAV server credentials and select a calendar.
+
+Only one MiniTask instance runs per user. Starting it again (from the menu, a launcher or `./start.sh`) does not open a second window — the running one is restored and brought to the front.
+
+### Desktop Entry (Linux)
+
+To start MiniTask from your application menu, create `~/.local/share/applications/MiniTask.desktop`:
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=MiniTask
+Exec=/path/to/minitask/start.sh
+Icon=/path/to/minitask/assets/minitask.png
+Terminal=false
+StartupNotify=true
+StartupWMClass=MiniTask
+```
+
+`StartupNotify=true` matters on **Wayland**: compositors only let a window take focus with an activation token, which the launcher passes on only for entries with startup notification. MiniTask forwards this token to the already running instance — without it, the existing window may only be highlighted in the taskbar instead of coming to the front. On X11 it works either way.
 
 ### Developer Mode (Linux)
 

@@ -457,6 +457,16 @@ class MainWindow(QMainWindow):
         }
         self.config_manager.save(config)
 
+    def bring_to_front(self):
+        """Restore and focus the window, e.g. when MiniTask is launched again."""
+        self.setWindowState(
+            (self.windowState() & ~Qt.WindowState.WindowMinimized)
+            | Qt.WindowState.WindowActive
+        )
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
     def closeEvent(self, event):
         self._save_geometry()
         # If there's a pending delete, execute it before closing
