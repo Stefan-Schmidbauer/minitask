@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QAction, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QDateEdit,
@@ -23,6 +23,7 @@ from src.services.caldav_client import CalDAVService
 from src.services.config_manager import ConfigManager
 from src.utils.date_helpers import increment_date, increment_month, today_iso
 from src.utils.sorting import sort_tasks
+from src.views.about_dialog import AboutDialog
 from src.views.edit_dialog import EditDialog
 from src.views.settings_dialog import SettingsDialog
 from src.views.task_widgets import TaskTable
@@ -115,6 +116,7 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
 
         refresh_action = QAction("\u21bb Refresh", self)
+        refresh_action.setToolTip("Refresh (F5)")
         refresh_action.triggered.connect(self._load_tasks)
         toolbar.addAction(refresh_action)
 
@@ -250,6 +252,7 @@ class MainWindow(QMainWindow):
             "border: none; border-radius: 3px; font-size: 12px; font-weight: bold; }"
             "QPushButton:hover { background: #ec971f; }"
         )
+        undo_btn.setToolTip("Undo (Ctrl+Z)")
         undo_btn.clicked.connect(self._undo_complete)
         undo_layout.addWidget(undo_btn)
         self.undo_bar.hide()
@@ -339,27 +342,7 @@ class MainWindow(QMainWindow):
         return "dev"
 
     def _show_about(self):
-        import pathlib
-
-        icon_path = pathlib.Path(__file__).resolve().parent.parent.parent / "assets" / "minitask.svg"
-        pixmap = QPixmap(str(icon_path)).scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-        version = self._get_version()
-
-        msg = QMessageBox(self)
-        msg.setWindowTitle("About MiniTask")
-        msg.setIconPixmap(pixmap)
-        msg.setText(
-            f"<h3>MiniTask</h3>"
-            f"<p>Version: {version}</p>"
-            f"<p>A lightweight CalDAV task manager.</p>"
-        )
-        msg.setInformativeText(
-            "<p>Built with PySide6 (Qt6) and python-caldav.</p>"
-            "<p>&copy; 2025 Stefan Schmidbauer &amp; Claude (Anthropic)</p>"
-            "<p><b>Shortcuts:</b> Ctrl+N new task, Ctrl+F search, "
-            "F5 refresh, Ctrl+Z undo, Escape clear</p>"
-        )
-        msg.exec()
+        AboutDialog(self._get_version(), self).exec()
 
     # --- Auto-Sync ---
 
