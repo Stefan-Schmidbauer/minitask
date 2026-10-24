@@ -153,7 +153,7 @@ class TaskTable(QTreeWidget):
             note_btn.setFixedSize(22, 22)
             note_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             note_btn.setStyleSheet(
-                "border: none; background: transparent; color: #337ab7; font-size: 14px;"
+                "QPushButton { border: none; background: transparent; color: #337ab7; font-size: 14px; }"
             )
             note_btn.setToolTip(task.note)
             note_btn.clicked.connect(
@@ -175,13 +175,14 @@ class TaskTable(QTreeWidget):
         font = date_label.font()
         font.setPointSize(11)
         date_label.setFont(font)
+        # ".QLabel" matches only this label, not its tooltip (a QLabel subclass)
         cls = get_date_class(task.date)
         if cls == "overdue":
-            date_label.setStyleSheet(f"color: {COLOR_OVERDUE}; font-weight: bold; background: transparent;")
+            date_label.setStyleSheet(f".QLabel {{ color: {COLOR_OVERDUE}; font-weight: bold; background: transparent; }}")
         elif cls == "future":
-            date_label.setStyleSheet(f"color: {COLOR_FUTURE}; background: transparent;")
+            date_label.setStyleSheet(f".QLabel {{ color: {COLOR_FUTURE}; background: transparent; }}")
         else:
-            date_label.setStyleSheet(f"color: {COLOR_TODAY}; background: transparent;")
+            date_label.setStyleSheet(f".QLabel {{ color: {COLOR_TODAY}; background: transparent; }}")
         self.setItemWidget(item, COL_DATE, date_label)
 
         # Action buttons
