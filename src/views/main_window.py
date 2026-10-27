@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QGuiApplication, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QDateEdit,
@@ -23,6 +23,7 @@ from src.services.caldav_client import CalDAVService
 from src.services.config_manager import ConfigManager
 from src.utils.date_helpers import increment_date, increment_month, today_iso
 from src.utils.sorting import sort_tasks
+from src.utils.x11 import activate_window
 from src.views.about_dialog import AboutDialog
 from src.views.edit_dialog import EditDialog
 from src.views.settings_dialog import SettingsDialog
@@ -450,6 +451,8 @@ class MainWindow(QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
+        if QGuiApplication.platformName() == "xcb":
+            activate_window(int(self.winId()))
 
     def closeEvent(self, event):
         self._save_geometry()
