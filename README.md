@@ -6,7 +6,7 @@
 
 A lightweight CalDAV task manager desktop application built with PySide6 (Qt6) and python-caldav.
 
-![MiniTask Screenshot](assets/screenshot.png)
+![MiniTask Screenshot](assets/screenshots/screenshot.png)
 
 ## Features
 
@@ -147,10 +147,10 @@ MiniTask itself is a desktop app only. To manage your tasks in natural language 
 > - The tools and their arguments are unchanged, but nothing is shared with the app any more: the CalDAV account is configured on the MCP server, not read from the desktop app's keyring.
 > - The `mcp` Python package is no longer needed in MiniTask's virtual environment.
 
-![Claude catching up on overdue tasks](assets/minitask_claude_1.png)
+![Claude catching up on overdue tasks](assets/screenshots/minitask_claude_1.png)
 *"Catch me up on my tasks" — Claude moves overdue items to today and returns a structured overview.*
 
-![Claude adding, rescheduling, and completing tasks](assets/minitask_claude_2.png)
+![Claude adding, rescheduling, and completing tasks](assets/screenshots/minitask_claude_2.png)
 *Add a starred task, push a deadline, mark one done — natural language, no context switching.*
 
 ## Third-party Libraries
