@@ -1,4 +1,5 @@
-blog/
+# Articles, LinkedIn/website images, videos — local only, never committed
+marketing/
 venv/
 __pycache__/
 .claude/
